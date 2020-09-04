@@ -83,19 +83,41 @@ public class PoolTranslator extends TimestampedEntityTranslator<Pool, PoolDTO> {
         dest.setUpstreamPoolId(source.getUpstreamPoolId());
         dest.setUpstreamEntitlementId(source.getUpstreamEntitlementId());
         dest.setUpstreamConsumerId(source.getUpstreamConsumerId());
-        dest.setProductName(source.getProductName());
-        dest.setProductId(source.getProductId());
-        dest.setProductAttributes(source.getProductAttributes());
         dest.setStackId(source.getStackId());
         dest.setStacked(source.isStacked());
         dest.setDevelopmentPool(source.isDevelopmentPool());
-        dest.setDerivedProductAttributes(source.getDerivedProductAttributes());
-        dest.setDerivedProductId(source.getDerivedProductId());
-        dest.setDerivedProductName(source.getDerivedProductName());
         dest.setSourceStackId(source.getSourceStackId());
         dest.setSubscriptionSubKey(source.getSubscriptionSubKey());
         dest.setSubscriptionId(source.getSubscriptionId());
         dest.setLocked(source.isLocked());
+
+        // Set product fields
+        Product product = source.getProduct();
+        Product derived = null;
+
+        if (product != null) {
+            dest.setProductId(product.getId());
+            dest.setProductName(product.getName());
+            dest.setProductAttributes(product.getAttributes());
+
+            derived = product.getDerivedProduct();
+        }
+        else {
+            dest.setProductId(null);
+            dest.setProductName(null);
+            dest.setProductAttributes(null);
+        }
+
+        if (derived != null) {
+            dest.setDerivedProductId(derived.getId());
+            dest.setDerivedProductName(derived.getName());
+            dest.setDerivedProductAttributes(derived.getAttributes());
+        }
+        else {
+            dest.setDerivedProductId(null);
+            dest.setDerivedProductName(null);
+            dest.setDerivedProductAttributes(null);
+        }
 
         // Process nested objects if we have a model translator to use to the translation...
         if (modelTranslator != null) {

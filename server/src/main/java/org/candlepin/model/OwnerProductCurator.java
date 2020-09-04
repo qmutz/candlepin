@@ -570,7 +570,8 @@ public class OwnerProductCurator extends AbstractHibernateCurator<OwnerProduct> 
 
     /**
      * Updates the product references currently pointing to the original product to instead point to
-     * the updated product for the specified owners.
+     * the updated product for the specified owners. This method does not update references which
+     * would normally affect product versioning, such as references from other products.
      * <p/></p>
      * <strong>Warning:</strong> Hibernate does not gracefully handle situations where the data
      * backing an entity changes via direct SQL or other outside influence. While, logically, a
@@ -614,42 +615,15 @@ public class OwnerProductCurator extends AbstractHibernateCurator<OwnerProduct> 
 
         log.debug("{} owner-product relations updated", count);
 
-        // pool provided and derived products
+        // pool->product
         count = this.bulkSQLUpdate(Pool.DB_TABLE, "product_uuid", uuidMap, criteria);
 
-        criteria.remove("product_uuid");
-        criteria.put("derived_product_uuid", productUuidMap.keySet());
-
-        count += this.bulkSQLUpdate(Pool.DB_TABLE, "derived_product_uuid", uuidMap, criteria);
-
         log.debug("{} pools updated", count);
-
-        // pool provided products
-        List<String> ids = session.createSQLQuery("SELECT id FROM cp_pool WHERE owner_id = :ownerId")
-            .setParameter("ownerId", owner.getId())
-            .list();
-
-        if (ids != null && !ids.isEmpty()) {
-            criteria.clear();
-            criteria.put("product_uuid", productUuidMap.keySet());
-            criteria.put("pool_id", ids);
-
-            count = this.bulkSQLUpdate("cp2_pool_provided_products", "product_uuid", uuidMap, criteria);
-            log.debug("{} provided products updated", count);
-
-            count = this.bulkSQLUpdate("cp2_pool_derprov_products", "product_uuid", uuidMap, criteria);
-            log.debug("{} derived provided products updated", count);
-        }
-        else {
-            log.debug("0 provided products updated");
-            log.debug("0 derived provided products updated");
-        }
-
 
         // Activation key products
         String sql = "SELECT id FROM cp_activation_key WHERE owner_id = :ownerId";
 
-        ids = session.createSQLQuery(sql)
+        List<String> ids = session.createSQLQuery(sql)
             .setParameter("ownerId", owner.getId())
             .list();
 

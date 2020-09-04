@@ -30,7 +30,6 @@ import org.candlepin.model.Entitlement;
 import org.candlepin.model.EntitlementCurator;
 import org.candlepin.model.GuestId;
 import org.candlepin.model.Pool;
-import org.candlepin.model.Product;
 import org.candlepin.policy.js.JsRunner;
 import org.candlepin.policy.js.JsonJsContext;
 import org.candlepin.policy.js.RuleExecutionException;
@@ -428,58 +427,17 @@ public class ComplianceRules {
                     pool.setRestrictedToUsername(poolDTO.getRestrictedToUsername());
                 }
 
-                if (poolDTO.getProductId() != null) {
-                    pool.setProductId(poolDTO.getProductId());
-                }
-
-                if (poolDTO.getDerivedProductId() != null) {
-                    pool.setDerivedProductId(poolDTO.getDerivedProductId());
-                }
-
                 if (poolDTO.getAttributes() != null) {
                     pool.setAttributes(poolDTO.getAttributes());
                 }
 
-                if (poolDTO.getProductAttributes() != null) {
-                    pool.setProductAttributes(poolDTO.getProductAttributes());
-                }
+                log.debug("OMITTED PROVIDED PRODUCT AND DERIVED PROVIDED PRODUCT POPULATION");
 
-                if (poolDTO.getProvidedProducts() != null) {
-                    if (poolDTO.getProvidedProducts().isEmpty()) {
-                        pool.setProvidedProducts(Collections.emptySet());
-                    }
-                    else {
-                        Set<Product> products = new HashSet<>();
-                        for (PoolDTO.ProvidedProductDTO providedProductDTO : poolDTO.getProvidedProducts()) {
-                            if (providedProductDTO != null) {
-                                Product newProd = new Product();
-                                newProd.setId(providedProductDTO.getProductId());
-                                newProd.setName(providedProductDTO.getProductName());
-                                products.add(newProd);
-                            }
-                        }
-                        pool.setProvidedProducts(products);
-                    }
-                }
+                // Product ID is no longer set here, as we should be setting a product rather
+                // than the
 
-                if (poolDTO.getDerivedProvidedProducts() != null) {
-                    if (poolDTO.getDerivedProvidedProducts().isEmpty()) {
-                        pool.setDerivedProvidedProducts(Collections.emptySet());
-                    }
-                    else {
-                        Set<Product> derivedProducts = new HashSet<>();
-                        for (PoolDTO.ProvidedProductDTO derivedProvidedProductDTO :
-                            poolDTO.getDerivedProvidedProducts()) {
-                            if (derivedProvidedProductDTO != null) {
-                                Product newDerivedProd = new Product();
-                                newDerivedProd.setId(derivedProvidedProductDTO.getProductId());
-                                newDerivedProd.setName(derivedProvidedProductDTO.getProductName());
-                                derivedProducts.add(newDerivedProd);
-                            }
-                        }
-                        pool.setDerivedProvidedProducts(derivedProducts);
-                    }
-                }
+                // Impl note: derived products and derived provided products have been moved to
+                // the product itself
 
                 entitlementModel.setPool(pool);
             }

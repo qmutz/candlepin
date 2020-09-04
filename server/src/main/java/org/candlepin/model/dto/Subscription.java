@@ -575,13 +575,21 @@ public class Subscription extends CandlepinDTO implements Owned, Named, Eventful
         this.setQuantityFromPool(source);
 
         // Map actual products into product data
-        this.setProduct(source.getProduct() != null ? new ProductData(source.getProduct()) : null);
-        this.setDerivedProduct(
-            source.getDerivedProduct() != null ? new ProductData(source.getDerivedProduct()) : null
-        );
+        Product srcProduct = source.getProduct();
+        if (srcProduct != null) {
+            this.setProduct(new ProductData(source.getProduct()));
+
+            Product srcDerived = srcProduct.getDerivedProduct();
+            this.setDerivedProduct(srcDerived != null ? new ProductData(srcDerived) : null);
+        }
+        else {
+            this.setProduct(null);
+            this.setDerivedProduct(null);
+        }
 
         return this;
     }
+
 
     private void setQuantityFromPool(Pool pool) {
         Product product = pool.getProduct();

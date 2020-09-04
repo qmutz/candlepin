@@ -215,6 +215,50 @@ public class ProductNodeVisitor implements NodeVisitor<Product, ProductInfo> {
         this.deletedProductUuids.clear();
     }
 
+    private EntityNode<Product, ProductInfo> lookupProductNode(NodeMapper mapper,
+        EntityNode<Product, ProductInfo> parentNode, String productId) {
+
+        EntityNode<Product, ProductInfo> childNode = mapper.getNode(Product.class, productId);
+
+        if (childNode == null) {
+            String errmsg = String.format("Product references a child product which does not exist: %s",
+                productId);
+
+            throw new IllegalStateException(errmsg);
+        }
+
+        if (childNode.getNodeState() == null) {
+            String errmsg = String.format("Child node accessed before it has been processed: " +
+                "%s => %s", parentNode, childNode);
+
+            throw new IllegalStateException(errmsg);
+        }
+
+        return childNode;
+    }
+
+    private EntityNode<Content, ContentInfo> lookupContentNode(NodeMapper mapper,
+        EntityNode<Product, ProductInfo> parentNode, String contentId) {
+
+        EntityNode<Content, ContentInfo> childNode = mapper.getNode(Content.class, contentId);
+
+        if (childNode == null) {
+            String errmsg = String.format("Product references a child content which does not exist: %s",
+                contentId);
+
+            throw new IllegalStateException(errmsg);
+        }
+
+        if (childNode.getNodeState() == null) {
+            String errmsg = String.format("Child node accessed before it has been processed: " +
+                "%s => %s", parentNode, childNode);
+
+            throw new IllegalStateException(errmsg);
+        }
+
+        return childNode;
+    }
+
     /**
      * Creates a new entity for the given node, potentially remapping to an existing node
      */
@@ -282,29 +326,26 @@ public class ProductNodeVisitor implements NodeVisitor<Product, ProductInfo> {
         // directly.
 
         // Perform child resolution
-        // Update products
-        Collection<? extends ProductInfo> providedProducts = sourceEntity.getProvidedProducts();
 
+        // Derived product
+        ProductInfo derivedProduct = sourceEntity.getDerivedProduct();
+        if (derivedProduct != null) {
+            EntityNode<Product, ProductInfo> childNode = this.lookupProductNode(mapper, node,
+                derivedProduct.getId());
+
+            updatedEntity.setDerivedProduct((Product) (childNode.changed() ?
+                childNode.getMergedEntity() :
+                childNode.getExistingEntity()));
+        }
+
+        // Provided products
+        Collection<? extends ProductInfo> providedProducts = sourceEntity.getProvidedProducts();
         if (providedProducts != null) {
             updatedEntity.setProvidedProducts(null);
 
             for (ProductInfo product : providedProducts) {
-                EntityNode<Product, ProductInfo> childNode = mapper.<Product, ProductInfo>
-                    getNode(Product.class, product.getId());
-
-                if (childNode == null) {
-                    String errmsg = String.format("Product references a product which does not exist: %s",
-                        product.getId());
-
-                    throw new IllegalStateException(errmsg);
-                }
-
-                if (childNode.getNodeState() == null) {
-                    String errmsg = String.format("Child node accessed before it has been processed: " +
-                        "%s => %s", sourceEntity, product);
-
-                    throw new IllegalStateException(errmsg);
-                }
+                EntityNode<Product, ProductInfo> childNode = this.lookupProductNode(mapper, node,
+                    product.getId());
 
                 updatedEntity.addProvidedProduct((Product) (childNode.changed() ?
                     childNode.getMergedEntity() :
@@ -314,28 +355,13 @@ public class ProductNodeVisitor implements NodeVisitor<Product, ProductInfo> {
 
         // Update content
         Collection<? extends ProductContentInfo> productContent = sourceEntity.getProductContent();
-
         if (productContent != null) {
             updatedEntity.setProductContent(null);
 
             for (ProductContentInfo pc : productContent) {
                 ContentInfo content = pc.getContent();
-                EntityNode<Content, ContentInfo> childNode = mapper.<Content, ContentInfo>
-                    getNode(Content.class, content.getId());
-
-                if (childNode == null) {
-                    String errmsg = String.format("Product references a content which does not exist: %s",
-                        content.getId());
-
-                    throw new IllegalStateException(errmsg);
-                }
-
-                if (childNode.getNodeState() == null) {
-                    String errmsg = String.format("Child node accessed before it has been processed: " +
-                        "%s => %s", sourceEntity, content);
-
-                    throw new IllegalStateException(errmsg);
-                }
+                EntityNode<Content, ContentInfo> childNode = this.lookupContentNode(mapper, node,
+                    content.getId());
 
                 updatedEntity.addContent((Content) (childNode.changed() ?
                     childNode.getMergedEntity() :

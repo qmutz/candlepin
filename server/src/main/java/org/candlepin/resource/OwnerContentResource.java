@@ -22,7 +22,6 @@ import org.candlepin.controller.ContentManager;
 import org.candlepin.controller.PoolManager;
 import org.candlepin.dto.ModelTranslator;
 import org.candlepin.dto.api.v1.ContentDTO;
-import org.candlepin.jackson.ProductCachedSerializationModule;
 import org.candlepin.model.CandlepinQuery;
 import org.candlepin.model.Content;
 import org.candlepin.model.ContentCurator;
@@ -82,7 +81,6 @@ public class OwnerContentResource {
     private PoolManager poolManager;
     private ProductCurator productCurator;
     private UniqueIdGenerator idGenerator;
-    private ProductCachedSerializationModule productCachedModule;
     private ContentAccessManager contentAccessManager;
     private ModelTranslator translator;
 
@@ -90,8 +88,8 @@ public class OwnerContentResource {
     public OwnerContentResource(ContentCurator contentCurator, ContentManager contentManager,
         EnvironmentContentCurator envContentCurator, I18n i18n, OwnerCurator ownerCurator,
         OwnerContentCurator ownerContentCurator, PoolManager poolManager, ProductCurator productCurator,
-        UniqueIdGenerator idGenerator,  ProductCachedSerializationModule productCachedModule,
-        ContentAccessManager contentAccessManager, ModelTranslator translator) {
+        UniqueIdGenerator idGenerator, ContentAccessManager contentAccessManager,
+        ModelTranslator translator) {
 
         this.contentCurator = contentCurator;
         this.contentManager = contentManager;
@@ -102,7 +100,6 @@ public class OwnerContentResource {
         this.poolManager = poolManager;
         this.productCurator = productCurator;
         this.idGenerator = idGenerator;
-        this.productCachedModule = productCachedModule;
         this.contentAccessManager = contentAccessManager;
         this.translator = translator;
     }

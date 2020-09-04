@@ -231,7 +231,8 @@ public class RefreshWorker {
 
                 this.productMapper.addImportedEntity(product);
 
-                // Add any nested provided products
+                // Add any nested products
+                this.addProducts(product.getDerivedProduct());
                 this.addProducts(product.getProvidedProducts());
 
                 // Add any content attached to this product...

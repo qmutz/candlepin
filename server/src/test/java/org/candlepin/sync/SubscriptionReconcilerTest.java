@@ -56,7 +56,6 @@ import org.xnap.commons.i18n.I18nFactory;
 
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -165,27 +164,34 @@ public class SubscriptionReconcilerTest {
             }
         }
 
-        if (sub.getDerivedProvidedProducts() != null) {
-            for (ProductDTO pdata : sub.getDerivedProvidedProducts()) {
-                if (pdata != null) {
-                    derivedProduct.addProvidedProduct(convertFromDTO(pdata));
+        if (derivedProduct != null) {
+            product.setDerivedProduct(derivedProduct);
+
+            if (sub.getDerivedProvidedProducts() != null) {
+                for (ProductDTO pdata : sub.getDerivedProvidedProducts()) {
+                    if (pdata != null) {
+                        derivedProduct.addProvidedProduct(convertFromDTO(pdata));
+                    }
                 }
             }
         }
 
-        Pool pool = new Pool(this.owner, product, new HashSet<>(), sub.getQuantity(),
-            sub.getStartDate(), sub.getEndDate(), sub.getContractNumber(), sub.getAccountNumber(),
-            sub.getOrderNumber());
-
-        pool.setDerivedProduct(derivedProduct);
+        Pool pool = new Pool()
+            .setOwner(this.owner)
+            .setProduct(product)
+            .setQuantity(sub.getQuantity())
+            .setStartDate(sub.getStartDate())
+            .setEndDate(sub.getEndDate())
+            .setContractNumber(sub.getContractNumber())
+            .setAccountNumber(sub.getAccountNumber())
+            .setOrderNumber(sub.getOrderNumber())
+            .setUpstreamPoolId(sub.getUpstreamPoolId())
+            .setUpstreamConsumerId(sub.getUpstreamConsumerId())
+            .setUpstreamEntitlementId(sub.getUpstreamEntitlementId());
 
         if (sub.getId() != null) {
             pool.setSourceSubscription(new SourceSubscription(sub.getId(), "master"));
         }
-
-        pool.setUpstreamPoolId(sub.getUpstreamPoolId());
-        pool.setUpstreamConsumerId(sub.getUpstreamConsumerId());
-        pool.setUpstreamEntitlementId(sub.getUpstreamEntitlementId());
 
         return pool;
     }
