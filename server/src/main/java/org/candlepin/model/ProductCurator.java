@@ -505,4 +505,25 @@ public class ProductCurator extends AbstractHibernateCurator<Product> {
 
         return this.cpQueryFactory.<Product>buildQuery();
     }
+
+    /**
+     * Fetches products by product UUIDs.
+     *
+     * @param productUuids
+     *  The Collection of product UUIDs
+     *
+     * @return
+     *  Query collection of Products
+     */
+    public CandlepinQuery<Product> getProductsByProductUuids(Collection<String> productUuids) {
+        Session session = this.currentSession();
+        if (productUuids != null && !productUuids.isEmpty()) {
+            DetachedCriteria criteria = this.createSecureDetachedCriteria(Product.class, null)
+                .add(CPRestrictions.in("uuid", productUuids));
+
+            return this.cpQueryFactory.<Product>buildQuery(session, criteria);
+        }
+
+        return this.cpQueryFactory.<Product>buildQuery();
+    }
 }

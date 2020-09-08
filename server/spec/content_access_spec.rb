@@ -36,6 +36,7 @@ describe 'Content Access' do
 
     @product = create_product('test-product', 'some product')
     @cp.add_content_to_product(@owner['key'], @product['id'], @content_id)
+    create_pool_and_subscription(@owner['key'], @product['id'], 10)
   end
 
   it "does allow addition of the content access level" do
@@ -573,6 +574,8 @@ describe 'Content Access' do
         @owner['key'], "cname-c2", 'test-content-c2', random_string("clabel"), "ctype", "cvendor",
         {:content_url=> '/this/is/the/path',  :modified_products => [@modified_product["id"]]}, true)
     @cp.add_content_to_product(@owner['key'], product['id'], content_c2['id'], false)
+
+    create_pool_and_subscription(@owner['key'], product['id'], 10)
     @consumer = consumer_client(@user, @consumername, type=:system, username=nil, facts= {'system.certificate_version' => '3.3'})
     certs = @consumer.list_certificates
 
@@ -659,6 +662,8 @@ describe 'Content Access' do
     @cp.add_content_to_product(@owner['key'], product_1['id'], content_c3['id'], false)
     @cp.add_content_to_product(@owner['key'], product_2['id'], content_c3['id'], false)
 
+    create_pool_and_subscription(@owner['key'], product_1['id'], 10)
+    create_pool_and_subscription(@owner['key'], product_2['id'], 10)
     @consumer = consumer_client(@user, @consumername, type=:system, username=nil, facts= {'system.certificate_version' => '3.3'})
     certs = @consumer.list_certificates
 
@@ -680,6 +685,97 @@ describe 'Content Access' do
         expect(content.enabled).to eq(false)
       end
     end
+  end
+
+  it 'should only add content from active pools on the SCA certificate' do
+    product_1 = create_product('test-product-p1', 'some product-p1')
+    product_2 = create_product('test-product-p2', 'some product-p2')
+
+    content_c1 = @cp.create_content(
+        @owner['key'], "cname-c1", 'test-content-c1', random_string("clabel"), "ctype", "cvendor",
+        {:content_url=> '/this/is/the/path',  :modified_products => [@modified_product["id"]]}, true)
+    @cp.add_content_to_product(@owner['key'], product_1['id'], content_c1['id'], true)
+
+    content_c2 = @cp.create_content(
+        @owner['key'], "cname-c2", 'test-content-c2', random_string("clabel"), "ctype", "cvendor",
+        {:content_url=> '/this/is/the/path',  :modified_products => [@modified_product["id"]]}, true)
+    @cp.add_content_to_product(@owner['key'], product_2['id'], content_c2['id'], true)
+
+    create_pool_and_subscription(@owner['key'], product_2['id'], 10)
+
+    @consumer = consumer_client(@user, @consumername, type=:system, username=nil,
+      facts= {'system.certificate_version' => '3.3'})
+    certs = @consumer.list_certificates
+
+    expect(certs.length).to eq(1)
+
+    cert = certs[0]['cert']
+    json_body = extract_payload(cert)
+    expect(json_body['products'][0]['content'].length).to eq(2)
+
+    # Make sure that content c1 is not present in cert,
+    # since product_1 does not have active pool
+    json_body['products'][0]['content'].each do |content|
+      expect(content.id).to_not eq(content_c1.id)
+    end
+  end
+
+  it 'should include content from all products associated with active pool to SCA cert' do
+    mkt_product1 = create_product(random_string('productp1'), random_string('product'),
+      {:owner => @owner['key']})
+    eng_product = create_product(random_string('productp2'), random_string('product'),
+      {:owner => @owner['key']})
+    derived_product =create_product(random_string('productp4'), random_string('product'),
+      {:owner => @owner['key']})
+    dev_eng_product = create_product(random_string('productp3'), random_string('product'),
+      {:owner => @owner['key']})
+
+    # Content enabled = true
+    content_c1 = @cp.create_content(
+        @owner['key'], "content_c1", 'test-content-c1', random_string("clabel"), "ctype", "cvendor",
+        {:content_url=> '/this/is/the/path',  :modified_products => [@modified_product["id"]]}, true)
+    @cp.add_content_to_product(@owner['key'], eng_product['id'], content_c1['id'], true)
+
+    content_c2 = @cp.create_content(
+        @owner['key'], "content_c2", 'test-content-c2', random_string("clabel"), "ctype", "cvendor",
+        {:content_url=> '/this/is/the/path',  :modified_products => [@modified_product["id"]]}, true)
+    @cp.add_content_to_product(@owner['key'], mkt_product1['id'], content_c2['id'], true)
+
+    content_c3 = @cp.create_content(
+        @owner['key'], "content_c3", 'test-content-c3', random_string("clabel"), "ctype", "cvendor",
+        {:content_url=> '/this/is/the/path',  :modified_products => [@modified_product["id"]]}, true)
+    @cp.add_content_to_product(@owner['key'], derived_product['id'], content_c3['id'], true)
+
+    content_c4 = @cp.create_content(
+        @owner['key'], "content_c4", 'test-content-c4', random_string("clabel"), "ctype", "cvendor",
+        {:content_url=> '/this/is/the/path',  :modified_products => [@modified_product["id"]]}, true)
+    @cp.add_content_to_product(@owner['key'], dev_eng_product['id'], content_c4['id'], true)
+
+
+    create_pool_and_subscription(@owner['key'], mkt_product1.id,
+    10, [eng_product.id], '', '', '', nil, nil, false,
+      {:derived_product_id => derived_product['id'], :derived_provided_products => [dev_eng_product['id']]})
+
+    @consumer = consumer_client(@user, @consumername, type=:system, username=nil,
+                                facts= {'system.certificate_version' => '3.3'})
+    certs = @consumer.list_certificates
+
+    expect(certs.length).to eq(1)
+
+    cert = certs[0]['cert']
+    json_body = extract_payload(cert)
+
+    expect(json_body['products'][0]['content'].length).to eq(5)
+
+    returned_uuids = []
+    json_body['products'][0]['content'].each do |content|
+      returned_uuids << content['id']
+    end
+
+    expect(returned_uuids).to include(content_c1.id)
+    expect(returned_uuids).to include(content_c2.id)
+    expect(returned_uuids).to include(content_c3.id)
+    expect(returned_uuids).to include(content_c4.id)
   end
 
 end

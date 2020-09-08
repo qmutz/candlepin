@@ -2091,8 +2091,9 @@ public class PoolCuratorTest extends DatabaseTestFixture {
             expectedPoolProductMap.put(pool.getId(), productIds);
         }
 
+        // Fetch mapping of Pool IDs and Provided Product IDs
         Map<String, Set<String>> actualPoolProductMap = this.poolCurator
-            .getProvidedProductIdsByPoolIds(expectedPoolProductMap.keySet());
+            .getProvidedProductByPoolIds(expectedPoolProductMap.keySet(), true);
 
         assertNotNull(actualPoolProductMap);
         assertEquals(expectedPoolProductMap, actualPoolProductMap);
@@ -2187,8 +2188,9 @@ public class PoolCuratorTest extends DatabaseTestFixture {
             expectedPoolProductMap.put(pool.getId(), productIds);
         }
 
+        // Fetch mapping of Pool IDs and Derived Provided Product IDs
         Map<String, Set<String>> actualPoolProductMap = this.poolCurator
-            .getDerivedProvidedProductIdsByPoolIds(expectedPoolProductMap.keySet());
+            .getDerivedProvidedProductByPoolIds(expectedPoolProductMap.keySet(), true);
 
         assertNotNull(actualPoolProductMap);
         assertEquals(expectedPoolProductMap, actualPoolProductMap);
@@ -2236,8 +2238,9 @@ public class PoolCuratorTest extends DatabaseTestFixture {
 
         this.poolCurator.flush();
 
+        // Fetch mapping of Pool IDs and Derived Provided Product UUIDs
         Map<String, Set<String>> actualPoolProductMap = this.poolCurator
-            .getDerivedProvidedProductIdsByPoolIds(expectedPoolProductMap.keySet());
+            .getDerivedProvidedProductByPoolIds(expectedPoolProductMap.keySet(), true);
 
         assertNotNull(actualPoolProductMap);
         assertEquals(expectedPoolProductMap, actualPoolProductMap);
@@ -2732,4 +2735,170 @@ public class PoolCuratorTest extends DatabaseTestFixture {
         assertEquals(output, Util.asSet(pool7.getId()));
     }
 
+    @Test
+    public void testFetchingPoolDerivedProvidedProductUuidsByPoolIds() {
+        Owner owner = this.createOwner();
+
+        List<Pool> pools = new ArrayList<>();
+        List<Product> products = new ArrayList<>();
+
+        int poolsToCreate = 5;
+        int productsPerPool = 5;
+        int productsToAttach = 3;
+
+        for (int i = 0; i < poolsToCreate; ++i) {
+            for (int p = 0; p < productsPerPool; ++p) {
+                String name = String.format("prod-%d", productsPerPool * i + p);
+                products.add(this.createProduct(name, name, owner));
+            }
+
+            Product product = this.createProduct(owner);
+            Pool pool = this.createPool(owner, product);
+
+            for (int p = productsPerPool * i; p < i * productsPerPool + productsToAttach; ++p) {
+                pool.addDerivedProvidedProduct(products.get(p));
+            }
+
+            pools.add(this.poolCurator.merge(pool));
+        }
+
+        Map<String, Set<String>> expectedPoolProductMap = new HashMap<>();
+
+        for (int i : Arrays.asList(0, 2, 4)) {
+            Set productIds = new HashSet<String>();
+            Pool pool = pools.get(i);
+
+            for (int j = productsPerPool * i; j < productsPerPool * i + productsToAttach; ++j) {
+                productIds.add(products.get(j).getUuid());
+            }
+
+            expectedPoolProductMap.put(pool.getId(), productIds);
+        }
+
+        this.poolCurator.flush();
+
+        // Fetch mapping of Pool IDs and Derived Provided Product UUIDs
+        Map<String, Set<String>> actualPoolProductMap = this.poolCurator
+            .getDerivedProvidedProductByPoolIds(expectedPoolProductMap.keySet(), false);
+
+        assertNotNull(actualPoolProductMap);
+        assertEquals(expectedPoolProductMap, actualPoolProductMap);
+    }
+
+    @Test
+    public void testFetchingPoolProvidedProductUuidsByPoolIds() {
+        Owner owner = this.createOwner();
+
+        List<Pool> pools = new ArrayList<>();
+        List<Product> products = new ArrayList<>();
+
+        int poolsToCreate = 5;
+        int productsPerPool = 5;
+        int productsToAttach = 3;
+
+        for (int i = 0; i < poolsToCreate; ++i) {
+            for (int p = 0; p < productsPerPool; ++p) {
+                String name = String.format("prod-%d", productsPerPool * i + p);
+                products.add(this.createProduct(name, name, owner));
+            }
+
+            Product product = this.createProduct(owner);
+            Pool pool = this.createPool(owner, product);
+
+            for (int p = productsPerPool * i; p < i * productsPerPool + productsToAttach; ++p) {
+                pool.addProvidedProduct(products.get(p));
+            }
+
+            pools.add(this.poolCurator.merge(pool));
+        }
+
+        Map<String, Set<String>> expectedPoolProductMap = new HashMap<>();
+
+        for (int i : Arrays.asList(0, 2, 4)) {
+            Set productIds = new HashSet<String>();
+            Pool pool = pools.get(i);
+
+            for (int j = productsPerPool * i; j < productsPerPool * i + productsToAttach; ++j) {
+                productIds.add(products.get(j).getUuid());
+            }
+
+            expectedPoolProductMap.put(pool.getId(), productIds);
+        }
+
+        // Fetch mapping of Pool IDs and Provided Product UUIDs
+        Map<String, Set<String>> actualPoolProductMap = this.poolCurator
+            .getProvidedProductByPoolIds(expectedPoolProductMap.keySet(), false);
+
+        assertNotNull(actualPoolProductMap);
+        assertEquals(expectedPoolProductMap, actualPoolProductMap);
+    }
+
+    @Test
+    public void testGetActivePoolByOwnerId() {
+        Owner owner = this.createOwner();
+
+        List<Pool> pools = new ArrayList<>();
+        List<Product> products = new ArrayList<>();
+
+        int poolsToCreate = 2;
+        int productsPerPool = 2;
+        int expiredPoolsToCreate = 2;
+
+        List<String> expectedResult = new ArrayList<>();
+
+        for (int i = 0; i < poolsToCreate; ++i) {
+            for (int p = 0; p < productsPerPool; ++p) {
+                String name = String.format("prod-%d", productsPerPool * i + p);
+                products.add(this.createProduct(name, name, owner));
+            }
+
+            Product product = this.createProduct(owner);
+            Pool pool = this.createPool(owner, product);
+            pool.setStartDate(Util.yesterday());
+            pool.setEndDate(Util.tomorrow());
+            pools.add(this.poolCurator.merge(pool));
+            expectedResult.add(pool.getId());
+        }
+
+        for (int i = 0; i < expiredPoolsToCreate; ++i) {
+            for (int p = 0; p < productsPerPool; ++p) {
+                String name = String.format("prod-%d", productsPerPool * i + p);
+                products.add(this.createProduct(name, name, owner));
+            }
+
+            Product product = this.createProduct(owner);
+            Pool pool = this.createPool(owner, product);
+            pool.setEndDate(Util.yesterday());
+            pools.add(this.poolCurator.merge(pool));
+        }
+
+        Collection<String> result = poolCurator.getActivePoolByOwnerId(owner.getId());
+        assertEquals(2, result.size());
+        assertTrue(result.contains(expectedResult.get(0)));
+        assertTrue(result.contains(expectedResult.get(1)));
+    }
+
+    @Test
+    public void testFetchingPoolProductAndDerivedProductUuidsByPoolIds() {
+        Owner owner = this.createOwner();
+        int poolsToCreate = 5;
+        Map<String, Set<String>> expectedPoolProductMap = new HashMap<>();
+
+        for (int i = 0; i < poolsToCreate; ++i) {
+            Product product = this.createProduct(owner);
+            Product derivedProduct = this.createProduct(owner);
+            Pool pool = this.createPool(owner, product);
+            pool.setDerivedProduct(derivedProduct);
+            this.poolCurator.merge(pool);
+
+            expectedPoolProductMap.put(pool.getId(), Util.asSet(product.getUuid(), derivedProduct.getUuid()));
+        }
+
+        // Fetch mapping of Pool IDs with product & derived product UUIDs
+        Map<String, Set<String>> actualPoolProductMap = this.poolCurator
+            .getProductAndDerivedProductUuidsByPoolIds(expectedPoolProductMap.keySet());
+
+        assertNotNull(actualPoolProductMap);
+        assertEquals(expectedPoolProductMap, actualPoolProductMap);
+    }
 }

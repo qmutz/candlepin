@@ -45,7 +45,9 @@ import org.candlepin.model.OwnerEnvContentAccess;
 import org.candlepin.model.OwnerEnvContentAccessCurator;
 import org.candlepin.model.OwnerProductCurator;
 import org.candlepin.model.Pool;
+import org.candlepin.model.PoolCurator;
 import org.candlepin.model.Product;
+import org.candlepin.model.ProductCurator;
 import org.candlepin.pki.CertificateReader;
 import org.candlepin.pki.PKIUtility;
 import org.candlepin.pki.PrivateKeyReader;
@@ -76,6 +78,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.KeyPair;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -96,6 +99,8 @@ public class ContentAccessManagerTest {
     @Mock private KeyPairCurator mockKeyPairCurator;
     @Mock private CertificateSerialCurator mockCertSerialCurator;
     @Mock private ConsumerCurator mockConsumerCurator;
+    @Mock private PoolCurator mockPoolCurator;
+    @Mock private ProductCurator mockProductCurator;
     @Mock private ConsumerTypeCurator mockConsumerTypeCurator;
     @Mock private ContentAccessCertificateCurator mockContentAccessCertCurator;
     @Mock private OwnerCurator mockOwnerCurator;
@@ -161,8 +166,8 @@ public class ContentAccessManagerTest {
     private ContentAccessManager createManager() {
         return new ContentAccessManager(
             this.config, this.pkiUtility, this.x509V3ExtensionUtil, this.mockContentAccessCertCurator,
-            this.mockKeyPairCurator, this.mockCertSerialCurator, this.mockOwnerCurator,
-            this.mockOwnerEnvContentAccessCurator, this.mockConsumerCurator,
+            this.mockKeyPairCurator, this.mockCertSerialCurator, this.mockOwnerCurator, this.mockPoolCurator,
+            this.mockProductCurator, this.mockOwnerEnvContentAccessCurator, this.mockConsumerCurator,
             this.mockConsumerTypeCurator, this.mockEnvironmentCurator, this.mockContentAccessCertCurator,
             this.mockOwnerProductCurator, this.mockEventSink);
     }
@@ -224,7 +229,11 @@ public class ContentAccessManagerTest {
         CandlepinQuery cqmock = mock(CandlepinQuery.class);
         doReturn(productList).when(cqmock).list();
         doAnswer(iom -> productList.iterator()).when(cqmock).iterator();
-        doReturn(cqmock).when(this.mockOwnerProductCurator).getProductsByOwner(eq(owner));
+
+        CandlepinQuery<Product> cqmock1 = mock(CandlepinQuery.class);
+        when(cqmock1.iterator()).thenReturn(Collections.singletonList(product).iterator());
+        when(this.mockProductCurator.getProductsByProductUuids(anySet()))
+            .thenReturn(cqmock1);
 
         return product;
     }
@@ -234,7 +243,7 @@ public class ContentAccessManagerTest {
         pool.setQuantity(1L);
         pool.setProduct(product);
         pool.setStartDate(TestUtil.createDate(2000, 1, 1));
-        pool.setEndDate(TestUtil.createDate(2050, 1, 1));
+        pool.setEndDate(Util.tomorrow());
 
         return pool;
     }

@@ -39,8 +39,10 @@ import org.candlepin.model.OwnerEnvContentAccess;
 import org.candlepin.model.OwnerEnvContentAccessCurator;
 import org.candlepin.model.OwnerProductCurator;
 import org.candlepin.model.Pool;
+import org.candlepin.model.PoolCurator;
 import org.candlepin.model.Product;
 import org.candlepin.model.ProductContent;
+import org.candlepin.model.ProductCurator;
 import org.candlepin.pki.PKIUtility;
 import org.candlepin.pki.X509ByteExtensionWrapper;
 import org.candlepin.pki.X509ExtensionWrapper;
@@ -66,6 +68,7 @@ import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -189,6 +192,8 @@ public class ContentAccessManager {
     private KeyPairCurator keyPairCurator;
     private CertificateSerialCurator serialCurator;
     private OwnerCurator ownerCurator;
+    private PoolCurator poolCurator;
+    private ProductCurator productCurator;
     private ContentAccessCertificateCurator contentAccessCertificateCurator;
     private X509V3ExtensionUtil v3extensionUtil;
     private OwnerEnvContentAccessCurator ownerEnvContentAccessCurator;
@@ -210,6 +215,8 @@ public class ContentAccessManager {
         KeyPairCurator keyPairCurator,
         CertificateSerialCurator serialCurator,
         OwnerCurator ownerCurator,
+        PoolCurator poolCurator,
+        ProductCurator productCurator,
         OwnerEnvContentAccessCurator ownerEnvContentAccessCurator,
         ConsumerCurator consumerCurator,
         ConsumerTypeCurator consumerTypeCurator,
@@ -225,6 +232,8 @@ public class ContentAccessManager {
         this.serialCurator = Objects.requireNonNull(serialCurator);
         this.v3extensionUtil = Objects.requireNonNull(v3extensionUtil);
         this.ownerCurator = Objects.requireNonNull(ownerCurator);
+        this.poolCurator = Objects.requireNonNull(poolCurator);
+        this.productCurator = Objects.requireNonNull(productCurator);
         this.ownerEnvContentAccessCurator = Objects.requireNonNull(ownerEnvContentAccessCurator);
         this.consumerCurator = Objects.requireNonNull(consumerCurator);
         this.consumerTypeCurator = Objects.requireNonNull(consumerTypeCurator);
@@ -509,7 +518,35 @@ public class ContentAccessManager {
     private byte[] createContentAccessDataPayload(Owner owner, Environment environment) throws IOException {
         // fake a product dto as a container for the org content
         Set<Product> containerSet = new HashSet<>();
-        CandlepinQuery<Product> ownerProduct = ownerProductCurator.getProductsByOwner(owner);
+        Set<String> productUuids = new HashSet<>();
+
+        Collection<String> activePoolIds = poolCurator.getActivePoolByOwnerId(owner.getId());
+        Map<String, Set<String>> products =
+            poolCurator.getProductAndDerivedProductUuidsByPoolIds(activePoolIds);
+
+        Map<String, Set<String>> providedProducts =
+            poolCurator.getProvidedProductByPoolIds(activePoolIds, false);
+
+        Map<String, Set<String>> derivedProvidedProducts =
+            poolCurator.getDerivedProvidedProductByPoolIds(activePoolIds, false);
+
+        for (String poolId : activePoolIds) {
+            if (providedProducts.get(poolId) != null) {
+                productUuids.addAll(providedProducts.get(poolId));
+            }
+
+            if (derivedProvidedProducts.get(poolId) != null) {
+                productUuids.addAll(derivedProvidedProducts.get(poolId));
+            }
+
+            if (products.get(poolId) != null) {
+                productUuids.addAll(products.get(poolId));
+            }
+        }
+
+        CandlepinQuery<Product> productsToConsider =
+            productCurator.getProductsByProductUuids(productUuids);
+
         Set<String> entitledProductIds = new HashSet<>();
         List<org.candlepin.model.dto.Product> productModels = new ArrayList<>();
         Map<String, EnvironmentContent> promotedContent = getPromotedContent(environment);
@@ -526,7 +563,7 @@ public class ContentAccessManager {
         container.setName(" Content Access");
         Map<String, Boolean> contentEnabledMap = new HashMap<>();
 
-        for (Product product : ownerProduct) {
+        for (Product product : productsToConsider) {
             for (ProductContent pc : product.getProductContent()) {
                 if (!contentEnabledMap.containsKey(pc.getContent().getUuid())) {
                     container.addContent(pc.getContent(), pc.isEnabled());

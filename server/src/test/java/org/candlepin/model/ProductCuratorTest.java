@@ -658,4 +658,14 @@ public class ProductCuratorTest extends DatabaseTestFixture {
             "Product contains a Branding with a null product id, name or type.",
             "The exception should have a different message.");
     }
+
+    @Test
+    public void testGetProductsByProductUuids() {
+        Product p1 = createTestProduct();
+        p1 = productCurator.create(p1);
+        List<Product> products = productCurator
+            .getProductsByProductUuids(Arrays.asList(p1.getUuid())).list();
+        assertEquals(1, products.size());
+        assertEquals(p1.getUuid(), products.get(0).getUuid());
+    }
 }

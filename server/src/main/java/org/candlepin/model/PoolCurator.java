@@ -19,6 +19,7 @@ import org.candlepin.common.paging.PageRequest;
 import org.candlepin.model.Pool.PoolType;
 import org.candlepin.model.activationkeys.ActivationKey;
 import org.candlepin.model.activationkeys.ActivationKeyPool;
+import org.candlepin.util.Util;
 
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
@@ -1684,26 +1685,40 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
             }
         }
 
-        return this.getProvidedProductIdsByPoolIds(poolIds);
+        return this.getProvidedProductByPoolIds(poolIds, true);
     }
 
     /**
-     * Fetches a mapping of pool IDs to sets of product IDs representing the provided products of
+     * Fetches a mapping of pool IDs to sets of product IDs or UUIDs representing the provided products of
      * the given pool. The returned map will only contain mappings for pools specified in the given
      * collection of pool IDs.
      *
      * @param poolIds
-     *  A collection of pool IDs for which to fetch provided product IDs
+     *  A collection of pool IDs for which to fetch provided product IDs or UUIDs
+     *
+     * @param fetchMode
+     *  Boolean field.
+     *  True  -> Returns mapping of Pool IDs & provided product IDs
+     *  False -> Returns mapping of Pool IDs & provided product UUIDs
      *
      * @return
-     *  A mapping of pool IDs to provided product IDs
+     *  A mapping of pool IDs to provided product IDs or UUIDs
      */
-    public Map<String, Set<String>> getProvidedProductIdsByPoolIds(Collection<String> poolIds) {
+    public Map<String, Set<String>> getProvidedProductByPoolIds(Collection<String> poolIds,
+        boolean fetchMode) {
         Map<String, Set<String>> providedProductMap = new HashMap<>();
+        StringBuilder builder = new StringBuilder();
 
         if (poolIds != null && !poolIds.isEmpty()) {
-            StringBuilder builder =
-                new StringBuilder("SELECT p.id, pp.id FROM Pool p JOIN p.providedProducts pp WHERE");
+            if (fetchMode) {
+                // Fetch via Product IDs
+                builder.append("SELECT p.id, pp.id FROM Pool p JOIN p.providedProducts pp WHERE ");
+            }
+            else {
+                // Fetch via Product UUIDs
+                builder.append("SELECT p.id, pp.uuid FROM Pool p JOIN p.providedProducts pp WHERE ");
+            }
+
             javax.persistence.Query query = null;
 
             int blockSize = getInBlockSize();
@@ -1735,14 +1750,10 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
             }
 
             for (Object[] cols : (List<Object[]>) query.getResultList()) {
-                Set<String> providedProducts = providedProductMap.get((String) cols[0]);
-
-                if (providedProducts == null) {
-                    providedProducts = new HashSet<>();
-                    providedProductMap.put((String) cols[0], providedProducts);
-                }
-
-                providedProducts.add((String) cols[1]);
+                providedProductMap.computeIfAbsent((String) cols[0],
+                    k -> providedProductMap.put((String) cols[0], Util.asSet((String) cols[1])));
+                providedProductMap.computeIfPresent((String) cols[0],
+                    (k, v) -> { v.add((String) cols[1]); return v; });
             }
         }
 
@@ -1772,26 +1783,39 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
             }
         }
 
-        return this.getDerivedProvidedProductIdsByPoolIds(poolIds);
+        return this.getDerivedProvidedProductByPoolIds(poolIds, true);
     }
 
     /**
-     * Fetches a mapping of pool IDs to sets of product IDs representing the provided products of
+     * Fetches a mapping of pool IDs to sets of product IDs or UUIDs representing the provided products of
      * the given pool. The returned map will only contain mappings for pools specified in the given
      * collection of pool IDs.
      *
      * @param poolIds
-     *  A collection of pool IDs for which to fetch provided product IDs
+     *  A collection of pool IDs for which to fetch provided product IDs or UUIDs
+     *
+     * @param fetchMode
+     *  Boolean field.
+     *  True  -> Returns mapping of Pool IDs & provided product IDs
+     *  False -> Returns mapping of Pool IDs & provided product UUIDs
      *
      * @return
-     *  A mapping of pool IDs to provided product IDs
+     *  A mapping of pool IDs to provided product IDs or UUIDs
      */
-    public Map<String, Set<String>> getDerivedProvidedProductIdsByPoolIds(Collection<String> poolIds) {
+    public Map<String, Set<String>> getDerivedProvidedProductByPoolIds(Collection<String> poolIds,
+        boolean fetchMode) {
         Map<String, Set<String>> providedProductMap = new HashMap<>();
+        StringBuilder builder = new StringBuilder();
 
         if (poolIds != null && !poolIds.isEmpty()) {
-            StringBuilder builder =
-                new StringBuilder("SELECT p.id, dpp.id FROM Pool p JOIN p.derivedProvidedProducts dpp WHERE");
+            if (fetchMode) {
+                // Fetch via Products IDs
+                builder.append("SELECT p.id, dpp.id FROM Pool p JOIN p.derivedProvidedProducts dpp WHERE ");
+            }
+            else {
+                // Fetch via Products UUIDs
+                builder.append("SELECT p.id, dpp.uuid FROM Pool p JOIN p.derivedProvidedProducts dpp WHERE ");
+            }
 
             javax.persistence.Query query = null;
 
@@ -1824,14 +1848,10 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
             }
 
             for (Object[] cols : (List<Object[]>) query.getResultList()) {
-                Set<String> providedProducts = providedProductMap.get((String) cols[0]);
-
-                if (providedProducts == null) {
-                    providedProducts = new HashSet<>();
-                    providedProductMap.put((String) cols[0], providedProducts);
-                }
-
-                providedProducts.add((String) cols[1]);
+                providedProductMap.computeIfAbsent((String) cols[0],
+                    k -> providedProductMap.put((String) cols[0], Util.asSet((String) cols[1])));
+                providedProductMap.computeIfPresent((String) cols[0],
+                    (k, v) -> { v.add((String) cols[1]); return v; });
             }
         }
 
@@ -2005,5 +2025,94 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
         }
 
         return output;
+    }
+
+    /**
+     * Fetches a collection of active pool IDs mapped to a given owner. If no such pool
+     * are present, an empty collection will be returned.
+     *
+     * @param ownerId
+     *  The ID of the owner for which to fetch active Pool IDs
+     *
+     * @return
+     *  A collection of active Pool IDs belonging to the given owner.
+     */
+    public Collection<String> getActivePoolByOwnerId(String ownerId) {
+        Date currentDate = new Date();
+        String jpql = "SELECT p.id FROM Pool p WHERE p.owner.id = " +
+            " :owner_id AND p.endDate >= :endDate AND p.startDate <= :startDate";
+
+        List<String> uuids = this.getEntityManager()
+            .createQuery(jpql, String.class)
+            .setParameter("owner_id", ownerId)
+            .setParameter("endDate", currentDate)
+            .setParameter("startDate", currentDate)
+            .getResultList();
+
+        return uuids != null ? uuids : Collections.<String>emptyList();
+    }
+
+    /**
+     * Fetches a mapping of pool IDs to sets of product UUID & derived product UUID of
+     * the given pool. The returned map will only contain mappings for pools specified in the given
+     * collection of pool IDs.
+     *
+     * @param poolIds
+     *  A collection of pool IDs for which to fetch product & derived product UUIDs.
+     *
+     * @return
+     *  A mapping of pool IDs to product & derived product UUIDs
+     */
+    public Map<String, Set<String>> getProductAndDerivedProductUuidsByPoolIds(Collection<String> poolIds) {
+        Map<String, Set<String>> productMap = new HashMap<>();
+
+        if (poolIds != null && !poolIds.isEmpty()) {
+            StringBuilder builder =
+                new StringBuilder("SELECT p.id, product.uuid, derivedProduct.uuid FROM Pool p WHERE ");
+
+            javax.persistence.Query query = null;
+
+            int blockSize = getInBlockSize();
+            int blockCount = (int) Math.ceil(poolIds.size() / (float) blockSize);
+
+            if (blockCount > 1) {
+                Iterable<List<String>> blocks = Iterables.partition(poolIds, blockSize);
+
+                for (int i = 0; i < blockCount; ++i) {
+                    if (i != 0) {
+                        builder.append(" OR");
+                    }
+
+                    builder.append(" p.id IN (:block").append(i).append(')');
+                }
+
+                query = this.getEntityManager().createQuery(builder.toString());
+                int i = -1;
+
+                for (List<String> block : blocks) {
+                    query.setParameter("block" + ++i, block);
+                }
+            }
+            else {
+                builder.append(" p.id IN (:pids)");
+                log.info("Main Product {}", builder.toString());
+                query = this.getEntityManager().createQuery(builder.toString())
+                    .setParameter("pids", poolIds);
+            }
+
+            for (Object[] cols : (List<Object[]>) query.getResultList()) {
+                Set<String> product = new HashSet<>();
+                product.add((String) cols[1]);
+
+                // Derived product
+                if ((String) cols[2] != null) {
+                    product.add((String) cols[2]);
+                }
+
+                productMap.put((String) cols[0], product);
+            }
+        }
+
+        return productMap;
     }
 }
