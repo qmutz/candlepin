@@ -23,17 +23,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.candlepin.dto.AbstractTranslatorTest;
 import org.candlepin.dto.ModelTranslator;
 import org.candlepin.dto.shim.ContentDataTranslator;
-import org.candlepin.dto.shim.ProductDataTranslator;
-import org.candlepin.dto.shim.ProductDataTranslatorTest;
 import org.candlepin.model.Branding;
 import org.candlepin.model.Cdn;
 import org.candlepin.model.Certificate;
 import org.candlepin.model.CertificateSerial;
+import org.candlepin.model.Content;
 import org.candlepin.model.Owner;
+import org.candlepin.model.Pool;
+import org.candlepin.model.Product;
+import org.candlepin.model.ProductContent;
 import org.candlepin.model.SubscriptionsCertificate;
 import org.candlepin.model.dto.ContentData;
-import org.candlepin.model.dto.ProductData;
-import org.candlepin.model.dto.Subscription;
 import org.candlepin.util.Util;
 
 import java.util.Arrays;
@@ -43,13 +43,13 @@ import java.util.Date;
 /**
  * Test suite for the ProductTranslator class
  */
-public class SubscriptionTranslatorTest extends
-    AbstractTranslatorTest<Subscription, SubscriptionDTO, SubscriptionTranslator> {
+public class PoolToSubscriptionTranslatorTest extends
+    AbstractTranslatorTest<Pool, SubscriptionDTO, PoolToSubscriptionTranslator> {
 
-    private SubscriptionTranslator translator = new SubscriptionTranslator();
+    private PoolToSubscriptionTranslator translator = new PoolToSubscriptionTranslator();
     private CdnTranslatorTest cdnTest = new CdnTranslatorTest();
     private NestedOwnerTranslatorTest ownerTest = new NestedOwnerTranslatorTest();
-    private ProductDataTranslatorTest productTest = new ProductDataTranslatorTest();
+    private ProductTranslatorTest productTest = new ProductTranslatorTest();
 
     @Override
     protected void initModelTranslator(ModelTranslator modelTranslator) {
@@ -60,22 +60,27 @@ public class SubscriptionTranslatorTest extends
         modelTranslator.registerTranslator(new ContentDataTranslator(), ContentData.class, ContentDTO.class);
         modelTranslator.registerTranslator(
             new CertificateTranslator(), Certificate.class, CertificateDTO.class);
+        modelTranslator.registerTranslator(
+            new ContentTranslator(), Content.class, ContentDTO.class);
         modelTranslator.registerTranslator(new NestedOwnerTranslator(), Owner.class, NestedOwnerDTO.class);
         modelTranslator.registerTranslator(
-            new ProductDataTranslator(), ProductData.class, ProductDTO.class);
-        modelTranslator.registerTranslator(this.translator, Subscription.class, SubscriptionDTO.class);
+            new ProductTranslator(), Product.class, ProductDTO.class);
+        modelTranslator.registerTranslator(
+            new ProductContentTranslator(), ProductContent.class, ProductContentDTO.class);
+        modelTranslator.registerTranslator(this.translator, Pool.class, SubscriptionDTO.class);
     }
 
     @Override
-    protected SubscriptionTranslator initObjectTranslator() {
+    protected PoolToSubscriptionTranslator initObjectTranslator() {
         return this.translator;
     }
 
     @Override
-    protected Subscription initSourceObject() {
-        Subscription source = new Subscription();
+    protected Pool initSourceObject() {
+        Pool source = new Pool();
 
         source.setId("test_id");
+        source.setSubscriptionId("sub_test_id");
         source.setOwner(this.ownerTest.initSourceObject());
         source.setProduct(this.productTest.initSourceObject());
         source.setDerivedProduct(this.productTest.initSourceObject());
@@ -86,7 +91,7 @@ public class SubscriptionTranslatorTest extends
         source.setEndDate(new Date());
         source.setContractNumber("test_contact");
         source.setAccountNumber("test_acc_num");
-        source.setModified(new Date());
+        source.setUpdated(new Date());
         source.setCreated(new Date());
         source.setUpdated(new Date());
         source.setOrderNumber("test_order_num");
@@ -99,7 +104,7 @@ public class SubscriptionTranslatorTest extends
         return source;
     }
 
-    private Collection<ProductData> createProducts() {
+    private Collection<Product> createProducts() {
         return Arrays.asList(
             this.productTest.initSourceObject(),
             this.productTest.initSourceObject()
@@ -114,15 +119,15 @@ public class SubscriptionTranslatorTest extends
 
     @Override
     protected void verifyOutput(
-        Subscription source, SubscriptionDTO dto, boolean childrenGenerated) {
+        Pool source, SubscriptionDTO dto, boolean childrenGenerated) {
         if (source != null) {
-            assertEquals(source.getId(), dto.getId());
+            assertEquals(source.getSubscriptionId(), dto.getId());
             assertEquals(source.getQuantity(), dto.getQuantity());
             assertEquals(Util.toDateTime(source.getStartDate()), dto.getStartDate());
             assertEquals(Util.toDateTime(source.getEndDate()), dto.getEndDate());
             assertEquals(source.getContractNumber(), dto.getContractNumber());
             assertEquals(source.getAccountNumber(), dto.getAccountNumber());
-            assertEquals(Util.toDateTime(source.getModified()), dto.getModified());
+            assertEquals(Util.toDateTime(source.getUpdated()), dto.getModified());
             assertEquals(Util.toDateTime(source.getLastModified()), dto.getLastModified());
             assertEquals(source.getOrderNumber(), dto.getOrderNumber());
             assertEquals(source.getUpstreamPoolId(), dto.getUpstreamPoolId());
@@ -130,6 +135,8 @@ public class SubscriptionTranslatorTest extends
             assertEquals(source.getUpstreamConsumerId(), dto.getUpstreamConsumerId());
             assertEquals(source.isStacked(), dto.getStacked());
             assertEquals(source.getStackId(), dto.getStackId());
+            assertEquals(source.getCreated(), Util.toDate(dto.getCreated()));
+            assertEquals(source.getUpdated(), Util.toDate(dto.getUpdated()));
 
             if (childrenGenerated) {
                 assertNotNull(source.getCertificate());
@@ -139,11 +146,11 @@ public class SubscriptionTranslatorTest extends
                     source.getDerivedProduct(), dto.getDerivedProduct(), childrenGenerated);
                 this.cdnTest.verifyOutput(source.getCdn(), dto.getCdn(), childrenGenerated);
 
-                for (ProductData product : source.getProvidedProducts()) {
+                for (Product product : source.getProvidedProducts()) {
                     assertNotNull(product);
                 }
 
-                for (ProductData product : source.getDerivedProvidedProducts()) {
+                for (Product product : source.getDerivedProvidedProducts()) {
                     assertNotNull(product);
                 }
             }
@@ -153,7 +160,7 @@ public class SubscriptionTranslatorTest extends
                 assertNull(dto.getOwner());
                 assertNull(dto.getProduct());
                 assertNull(dto.getDerivedProduct());
-                assertNull(dto.getCert());
+                assertNull(dto.getCertificate());
                 assertNull(dto.getCdn());
             }
         }

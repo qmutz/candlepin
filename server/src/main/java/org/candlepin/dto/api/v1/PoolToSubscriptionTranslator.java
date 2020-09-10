@@ -19,8 +19,8 @@ import org.candlepin.dto.ObjectTranslator;
 import org.candlepin.model.Cdn;
 import org.candlepin.model.Certificate;
 import org.candlepin.model.Owner;
-import org.candlepin.model.dto.ProductData;
-import org.candlepin.model.dto.Subscription;
+import org.candlepin.model.Pool;
+import org.candlepin.model.Product;
 import org.candlepin.util.Util;
 
 import java.util.Collection;
@@ -31,16 +31,16 @@ import java.util.stream.Collectors;
 
 
 /**
- * The SubscriptionTranslator provides translation from {@link Subscription}
+ * The PoolToSubscriptionTranslator provides translation from {@link Pool}
  * model objects to {@link SubscriptionDTO}
  */
-public class SubscriptionTranslator implements ObjectTranslator<Subscription, SubscriptionDTO> {
+public class PoolToSubscriptionTranslator implements ObjectTranslator<Pool, SubscriptionDTO> {
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public SubscriptionDTO translate(Subscription source) {
+    public SubscriptionDTO translate(Pool source) {
         return this.translate(null, source);
     }
 
@@ -48,7 +48,7 @@ public class SubscriptionTranslator implements ObjectTranslator<Subscription, Su
      * {@inheritDoc}
      */
     @Override
-    public SubscriptionDTO translate(ModelTranslator translator, Subscription source) {
+    public SubscriptionDTO translate(ModelTranslator translator, Pool source) {
         return source != null ? this.populate(translator, source, new SubscriptionDTO()) : null;
     }
 
@@ -56,7 +56,7 @@ public class SubscriptionTranslator implements ObjectTranslator<Subscription, Su
      * {@inheritDoc}
      */
     @Override
-    public SubscriptionDTO populate(Subscription source, SubscriptionDTO destination) {
+    public SubscriptionDTO populate(Pool source, SubscriptionDTO destination) {
         return this.populate(null, source, destination);
     }
 
@@ -65,7 +65,7 @@ public class SubscriptionTranslator implements ObjectTranslator<Subscription, Su
      */
     @Override
     public SubscriptionDTO populate(
-        ModelTranslator translator, Subscription source, SubscriptionDTO dest) {
+        ModelTranslator translator, Pool source, SubscriptionDTO dest) {
         if (source == null) {
             throw new IllegalArgumentException("source is null");
         }
@@ -74,13 +74,13 @@ public class SubscriptionTranslator implements ObjectTranslator<Subscription, Su
             throw new IllegalArgumentException("dest is null");
         }
 
-        dest.id(source.getId())
+        dest.id(source.getSubscriptionId())
             .quantity(source.getQuantity())
             .startDate(Util.toDateTime(source.getStartDate()))
             .endDate(Util.toDateTime(source.getEndDate()))
             .contractNumber(source.getContractNumber())
             .accountNumber(source.getAccountNumber())
-            .modified(Util.toDateTime(source.getModified()))
+            .modified(Util.toDateTime(source.getUpdated()))
             .lastModified(Util.toDateTime(source.getLastModified()))
             .created(Util.toDateTime(source.getCreated()))
             .updated(Util.toDateTime(source.getUpdated()))
@@ -93,21 +93,21 @@ public class SubscriptionTranslator implements ObjectTranslator<Subscription, Su
 
         if (translator != null) {
             dest.derivedProduct(translateObject(translator,
-                translator.getTranslator(ProductData.class, ProductDTO.class),
+                translator.getTranslator(Product.class, ProductDTO.class),
                 source.getDerivedProduct()));
             dest.setProvidedProducts(translateToSet(
-                translator.getStreamMapper(ProductData.class, ProductDTO.class),
+                translator.getStreamMapper(Product.class, ProductDTO.class),
                 source.getProvidedProducts()));
             dest.derivedProvidedProducts(translateToSet(
-                translator.getStreamMapper(ProductData.class, ProductDTO.class),
+                translator.getStreamMapper(Product.class, ProductDTO.class),
                 source.getDerivedProvidedProducts()));
             dest.owner(translateObject(translator,
                 translator.getTranslator(Owner.class, NestedOwnerDTO.class),
                 source.getOwner()));
             dest.product(translateObject(translator,
-                translator.getTranslator(ProductData.class, ProductDTO.class),
+                translator.getTranslator(Product.class, ProductDTO.class),
                 source.getProduct()));
-            dest.cert(translateObject(translator,
+            dest.certificate(translateObject(translator,
                 translator.getTranslator(Certificate.class, CertificateDTO.class),
                 source.getCertificate()));
             dest.cdn(translateObject(translator,
