@@ -552,7 +552,7 @@
       <dependency>
         <groupId>org.jboss.resteasy</groupId>
         <artifactId>resteasy-atom-provider</artifactId>
-        <version>4.4.2.Final</version>
+        <version>4.7.8.Final</version>
       </dependency>
       <dependency>
         <groupId>org.hamcrest</groupId>
@@ -602,7 +602,7 @@
       <dependency>
         <groupId>org.jboss.resteasy</groupId>
         <artifactId>resteasy-multipart-provider</artifactId>
-        <version>4.4.2.Final</version>
+        <version>4.7.8.Final</version>
       </dependency>
       <dependency>
         <groupId>org.junit.jupiter</groupId>
@@ -822,7 +822,7 @@
       <dependency>
         <groupId>org.jboss.resteasy</groupId>
         <artifactId>resteasy-guice</artifactId>
-        <version>4.4.2.Final</version>
+        <version>4.7.8.Final</version>
       </dependency>
       <dependency>
         <groupId>net.oauth.core</groupId>
