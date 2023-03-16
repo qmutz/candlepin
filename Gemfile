@@ -8,7 +8,7 @@ gem 'pmd'
 gem 'stringex'
 gem 'digest-murmurhash'
 gem 'httpclient'
-gem 'activesupport', '~> 4.2'
+gem 'activesupport', '~> 6.1', '>= 6.1.7.3'
 gem 'rubyzip', '~> 1.3.0'
 
 group 'proton' do
