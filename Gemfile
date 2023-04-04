@@ -2,29 +2,29 @@ source 'https://rubygems.org'
 
 gem 'rspec', '~> 3.0'
 gem 'mime-types', '~> 1.25.0'
-gem 'oauth'
+gem 'oauth', '>= 0.5.5'
 gem 'parallel_tests'
 gem 'pmd'
 gem 'stringex'
 gem 'digest-murmurhash'
 gem 'httpclient'
-gem 'activesupport', '~> 4.2'
+gem 'activesupport', '~> 6.1', '>= 6.1.7.3'
 gem 'rubyzip', '~> 1.3.0'
 
 group 'proton' do
-  gem 'qpid_proton', '~> 0.21.0'
+  gem 'qpid_proton', '~> 0.27.1'
 end
 
 # Remove this once we are fully using the new Ruby bindings
-gem 'rest-client', '~> 1.6.0'
+gem 'rest-client', '~> 1.8.0'
 
 group :development do
-  gem 'webrick'
+  gem 'webrick', '>= 1.5.1'
   gem 'pry'
   gem 'pry-byebug'
   gem 'pry-stack_explorer'
   # Rubocop can add new checks in new releases which
   # can result in new errors, so we control the version
   # very strictly
-  gem 'rubocop', '=0.36.0'
+  gem 'rubocop', '= 0.49.0'
 end
