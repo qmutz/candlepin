@@ -19,7 +19,7 @@ end
 gem 'rest-client', '~> 1.6.0'
 
 group :development do
-  gem 'webrick'
+  gem 'webrick', '>= 1.8.2'
   gem 'pry'
   gem 'pry-byebug'
   gem 'pry-stack_explorer'
